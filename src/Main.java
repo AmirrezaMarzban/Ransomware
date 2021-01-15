@@ -132,7 +132,7 @@ public class Main extends Core {
       Process runtime;
       for (String drive : findDrives()) {
         if(drive.equals("C:")) {
-          drive = System.getProperty("user.home")+"\\Desktop";
+          drive = System.getProperty("user.home") + "\\Desktop";
         }
         runtime = Runtime.getRuntime().exec("cmd /c dir /S /B *", null, new File(drive));
 
